@@ -1,0 +1,282 @@
+[
+ {
+  "part": "T1",
+  "caption": "0-7",
+  "placed_start": 0.08,
+  "placed_end": 7.89,
+  "late_by": 0.08,
+  "early_by": 0,
+  "tempo": 1.15,
+  "text": "Where does address 0x1000 live? In a direct-mapped cache: in exactly one line."
+ },
+ {
+  "part": "T1",
+  "caption": "7-12",
+  "placed_start": 8.01,
+  "placed_end": 12.8,
+  "late_by": 1.01,
+  "early_by": 0,
+  "tempo": 1.15,
+  "text": "This is our CSA222 project: a Direct-Mapped Cache Controller in Verilog."
+ },
+ {
+  "part": "T1",
+  "caption": "12-23",
+  "placed_start": 12.92,
+  "placed_end": 22.22,
+  "late_by": 0.92,
+  "early_by": 0,
+  "tempo": 1.15,
+  "text": "I'm Tathagat Harsh, and with me are M S Thejas, Garv Verma, Parv Goyal and Vaibhav Rajput."
+ },
+ {
+  "part": "T1",
+  "caption": "23-30",
+  "placed_start": 22.34,
+  "placed_end": 29.75,
+  "late_by": -0.66,
+  "early_by": 0.66,
+  "tempo": 1.15,
+  "text": "A cache is a small, fast SRAM between the CPU and slow DRAM. It works because programs have locality."
+ },
+ {
+  "part": "G1",
+  "caption": "30-40",
+  "placed_start": 30.25,
+  "placed_end": 38.72,
+  "late_by": 0.25,
+  "early_by": 0,
+  "tempo": 1.15,
+  "text": "Our cache is 1 KB with 16-byte blocks, so it has 64 lines."
+ },
+ {
+  "part": "G1",
+  "caption": "40-52",
+  "placed_start": 40.25,
+  "placed_end": 50.84,
+  "late_by": 0.25,
+  "early_by": 0,
+  "tempo": 1.15,
+  "text": "A 32-bit address splits into a 22-bit tag, a 6-bit index and a 4-bit offset."
+ },
+ {
+  "part": "G1",
+  "caption": "52-64",
+  "placed_start": 52.25,
+  "placed_end": 62.15,
+  "late_by": 0.25,
+  "early_by": 0,
+  "tempo": 1.15,
+  "text": "Direct-mapped means each block has exactly one possible line, chosen by the index. Same index means a fight."
+ },
+ {
+  "part": "G1",
+  "caption": "64-74",
+  "placed_start": 64.25,
+  "placed_end": 71.67,
+  "late_by": 0.25,
+  "early_by": 0,
+  "tempo": 1.15,
+  "text": "My tag comparator gives: hit = valid AND stored tag equals request tag."
+ },
+ {
+  "part": "G1",
+  "caption": "74-80",
+  "placed_start": 72.93,
+  "placed_end": 79.75,
+  "late_by": -1.07,
+  "early_by": 1.07,
+  "tempo": 1.15,
+  "text": "If the valid bit is 0, it's a miss, even when the tags match."
+ },
+ {
+  "part": "M1",
+  "caption": "80-90",
+  "placed_start": 80.25,
+  "placed_end": 91.53,
+  "late_by": 0.25,
+  "early_by": 0,
+  "tempo": 1.02,
+  "text": "The cache stores everything in three arrays: valid bits, tags and data."
+ },
+ {
+  "part": "M1",
+  "caption": "90-100",
+  "placed_start": 91.73,
+  "placed_end": 102.24,
+  "late_by": 1.73,
+  "early_by": 0,
+  "tempo": 1.02,
+  "text": "Valid bits are flip-flops: one reset clears all 64, so a garbage tag never gives a false hit."
+ },
+ {
+  "part": "M1",
+  "caption": "100-111",
+  "placed_start": 102.44,
+  "placed_end": 114.12,
+  "late_by": 2.44,
+  "early_by": 0,
+  "tempo": 1.02,
+  "text": "On a miss the data RAM takes a whole 16-byte block in one cycle. On a write hit, just one word."
+ },
+ {
+  "part": "M1",
+  "caption": "111-130",
+  "placed_start": 114.32,
+  "placed_end": 129.67,
+  "late_by": 3.32,
+  "early_by": 0,
+  "tempo": 1.02,
+  "text": "Direct-mapped gives the fastest hit path: one compare, no replacement policy. The cost is conflict misses."
+ },
+ {
+  "part": "T2",
+  "caption": "130-138",
+  "placed_start": 130.25,
+  "placed_end": 139.53,
+  "late_by": 0.25,
+  "early_by": 0,
+  "tempo": 1.08,
+  "text": "I designed the controller: a four-state finite state machine."
+ },
+ {
+  "part": "T2",
+  "caption": "138-149",
+  "placed_start": 139.73,
+  "placed_end": 150.26,
+  "late_by": 1.73,
+  "early_by": 0,
+  "tempo": 1.08,
+  "text": "IDLE latches the request. COMPARE checks the tag. A read miss goes to ALLOCATE and waits ten cycles for memory."
+ },
+ {
+  "part": "T2",
+  "caption": "149-155",
+  "placed_start": 150.46,
+  "placed_end": 155.14,
+  "late_by": 1.46,
+  "early_by": 0,
+  "tempo": 1.08,
+  "text": "A read hit finishes in a single cycle."
+ },
+ {
+  "part": "T2",
+  "caption": "155-169",
+  "placed_start": 155.34,
+  "placed_end": 168.17,
+  "late_by": 0.34,
+  "early_by": 0,
+  "tempo": 1.08,
+  "text": "Every write goes to WRITE_MEM: write-through, no-write-allocate. Memory is always up to date, so no dirty bits."
+ },
+ {
+  "part": "T2",
+  "caption": "169-180",
+  "placed_start": 169.25,
+  "placed_end": 179.75,
+  "late_by": 0.25,
+  "early_by": 0,
+  "tempo": 1.08,
+  "text": "The hit and miss counters live here, so the hardware measures its own hit rate."
+ },
+ {
+  "part": "P1",
+  "caption": "180-193",
+  "placed_start": 180.25,
+  "placed_end": 194.58,
+  "late_by": 0.25,
+  "early_by": 0,
+  "tempo": 1.14,
+  "text": "My main-memory model has a ten-cycle latency and returns a whole 128-bit block in one transfer."
+ },
+ {
+  "part": "P1",
+  "caption": "193-205",
+  "placed_start": 194.78,
+  "placed_end": 204.08,
+  "late_by": 1.78,
+  "early_by": 0,
+  "tempo": 1.14,
+  "text": "dm_cache.v connects six modules into one cache, with main memory outside it."
+ },
+ {
+  "part": "P1",
+  "caption": "205-213",
+  "placed_start": 205.25,
+  "placed_end": 210.88,
+  "late_by": 0.25,
+  "early_by": 0,
+  "tempo": 1.14,
+  "text": "One command compiles and runs the full testbench."
+ },
+ {
+  "part": "P1",
+  "caption": "213-230",
+  "placed_start": 213.25,
+  "placed_end": 229.62,
+  "late_by": 0.25,
+  "early_by": 0,
+  "tempo": 1.14,
+  "text": "In the waveform the first read misses and takes 12 cycles. The next three reads hit in one cycle each."
+ },
+ {
+  "part": "V1",
+  "caption": "230-240",
+  "placed_start": 230.25,
+  "placed_end": 238.14,
+  "late_by": 0.25,
+  "early_by": 0,
+  "tempo": 1.0,
+  "text": "My testbench checks all 2,187 accesses against a golden reference model. Zero errors."
+ },
+ {
+  "part": "V1",
+  "caption": "240-260",
+  "placed_start": 240.25,
+  "placed_end": 251.6,
+  "late_by": 0.25,
+  "early_by": 0,
+  "tempo": 1.0,
+  "text": "Sequential: 75%, one miss per 4-word block. Repeated: 93.75%, temporal locality. Random: about 10%."
+ },
+ {
+  "part": "V1",
+  "caption": "260-270",
+  "placed_start": 260.25,
+  "placed_end": 269.42,
+  "late_by": 0.25,
+  "early_by": 0,
+  "tempo": 1.0,
+  "text": "Conflict: 0%. Two addresses 1 KB apart share line 0 and keep evicting each other."
+ },
+ {
+  "part": "V1",
+  "caption": "270-282",
+  "placed_start": 270.25,
+  "placed_end": 275.82,
+  "late_by": 0.25,
+  "early_by": 0,
+  "tempo": 1.0,
+  "text": "Measured AMAT matches 1 + miss rate \u00d7 11 on every single trace."
+ },
+ {
+  "part": "V1",
+  "caption": "282-292",
+  "placed_start": 282.25,
+  "placed_end": 289.45,
+  "late_by": 0.25,
+  "early_by": 0,
+  "tempo": 1.0,
+  "text": "In Phase II we'll synthesize on Vivado and compare against a 2-way LRU cache."
+ },
+ {
+  "part": "V1",
+  "caption": "292-300",
+  "placed_start": 292.25,
+  "placed_end": 294.49,
+  "late_by": 0.25,
+  "early_by": 0,
+  "tempo": 1.0,
+  "text": "Thank you!"
+ }
+]
