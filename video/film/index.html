@@ -1,0 +1,476 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Direct-Mapped Cache Controller</title>
+<style>
+:root{--ink:#0E0F12;--paper:#EDEBE6;--dim:#7A7D85;--line:#2B2E35;--acc:#FF5A1F;--panel:#16181D}
+html,body{margin:0;background:var(--ink)}
+#stage{position:relative;width:1920px;height:1080px;overflow:hidden;background:var(--ink);color:var(--paper);font-family:Menlo,monospace}
+.d{font-family:"Avenir Next Condensed",sans-serif;font-weight:700;letter-spacing:-0.01em;line-height:0.95}
+.m{font-family:Menlo,monospace}
+.abs{position:absolute;white-space:pre}
+.scene{position:absolute;inset:0}
+</style></head>
+<body><div id="stage"></div>
+<script src="cap_times.js"></script>
+<script>
+// Film = pure function of time. window.seek(t) paints frame t. No timers, no transitions.
+const W = 1920, H = 1080, DUR = 300;
+const NS = 'http://www.w3.org/2000/svg';
+const stage = document.getElementById('stage');
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const outC = x => 1 - Math.pow(1 - x, 3);
+const inOut = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const outBack = x => { const c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+const P = (t, a, d) => clamp((t - a) / d);
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const rnd = mulberry32(20261116);
+const initWord = i => (Math.imul(i, 0x9E3779B1) ^ 0x5A5A5A5A) >>> 0;
+const hex = (v, n = 8) => (v >>> 0).toString(16).toUpperCase().padStart(n, '0');
+
+const CUES = []; window.CUES = CUES;
+const SCENES = []; const GLOBAL = [];
+let cur = null;
+function scene(start, end, build) {
+  const root = document.createElement('div'); root.className = 'scene'; stage.appendChild(root);
+  const sc = { start, end, root, anims: [] }; cur = sc; SCENES.push(sc); build(root); return sc;
+}
+const anim = f => cur.anims.push(f);
+const cue = (tl, type) => CUES.push({ t: +(cur.start + tl).toFixed(3), type });
+
+// ---------- element builders ----------
+function T(parent, x, y, text, o = {}) {
+  const e = document.createElement('div'); e.className = 'abs ' + (o.cls || 'm');
+  Object.assign(e.style, { left: x + 'px', top: y + 'px', fontSize: (o.size || 32) + 'px', color: o.color || 'var(--paper)' });
+  if (o.w) { e.style.width = o.w + 'px'; e.style.whiteSpace = 'normal'; }
+  e.textContent = text; parent.appendChild(e); return e;
+}
+function B(parent, x, y, w, h, text = '', o = {}) {
+  const e = document.createElement('div'); e.className = 'abs ' + (o.cls || 'm');
+  Object.assign(e.style, { left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px', fontSize: (o.size || 30) + 'px',
+    lineHeight: (o.lh || h - 2 * (o.bw ?? 2)) + 'px', textAlign: o.align || 'center', boxSizing: 'border-box',
+    border: `${o.bw ?? 2}px solid ${o.border || 'var(--line)'}`, background: o.bg || 'transparent', color: o.color || 'var(--paper)',
+    borderRadius: (o.r || 0) + 'px', paddingLeft: (o.pl || 0) + 'px' });
+  e.textContent = text; parent.appendChild(e); return e;
+}
+function G(parent, x, y, w, h) { const e = document.createElement('div'); e.className = 'abs'; Object.assign(e.style, { left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px' }); parent.appendChild(e); return e; }
+function S(parent, tag, a = {}) { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); parent.appendChild(e); return e; }
+function svgLayer(root) {
+  const s = S(root, 'svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}` }); Object.assign(s.style, { position: 'absolute', left: 0, top: 0, overflow: 'visible' });
+  const defs = S(s, 'defs'); const id = 'm' + SCENES.length;
+  for (const [suf, col] of [['', '#7A7D85'], ['a', '#FF5A1F'], ['p', '#EDEBE6']]) {
+    const m = S(defs, 'marker', { id: id + suf, viewBox: '0 0 10 10', refX: 8, refY: 5, markerWidth: 6, markerHeight: 6, orient: 'auto-start-reverse' });
+    S(m, 'path', { d: 'M0,0 L10,5 L0,10 z', fill: col });
+  }
+  s.mid = id; return s;
+}
+
+// ---------- animators (every branch sets every property it owns) ----------
+function hide(e, t, t0, out, d) { const h = t < t0 || (out != null && t >= out + d); e.style.visibility = h ? 'hidden' : 'visible'; return h; }
+function wipe(e, t0, o = {}) {
+  const d = o.d ?? 0.4, out = o.out, c = ('c' in o) ? o.c : 'tick'; if (c) cue(t0, c);
+  anim(t => {
+    if (hide(e, t, t0, out, 0.3)) return;
+    if (out != null && t >= out) { const q = inOut(P(t, out, 0.3)); e.style.clipPath = `inset(-30% -5% -30% ${q * 100}%)`; e.style.transform = `translateX(${q * 40}px)`; return; }
+    const p = outC(P(t, t0, d)); e.style.clipPath = p >= 1 ? 'none' : `inset(-30% ${100 - 100 * p}% -30% -5%)`; e.style.transform = `translateX(${(1 - p) * -36}px)`;
+  });
+}
+function rise(e, t0, o = {}) {
+  const d = o.d ?? 0.45, out = o.out, c = ('c' in o) ? o.c : 'tick'; if (c) cue(t0, c);
+  anim(t => {
+    if (hide(e, t, t0, out, 0.3)) return;
+    if (out != null && t >= out) { const q = inOut(P(t, out, 0.3)); e.style.clipPath = `inset(-10% -5% ${q * 100}% -5%)`; e.style.transform = `translateY(${-q * 40}px)`; return; }
+    const p = outC(P(t, t0, d)); e.style.clipPath = p >= 1 ? 'none' : `inset(${100 - 100 * p}% -5% -10% -5%)`; e.style.transform = `translateY(${(1 - p) * 60}px)`;
+  });
+}
+function pop(e, t0, o = {}) {
+  const d = o.d ?? 0.3, out = o.out, c = ('c' in o) ? o.c : 'pop'; if (c) cue(t0, c);
+  anim(t => {
+    if (hide(e, t, t0, out, 0.25)) return;
+    let s, op;
+    if (out != null && t >= out) { const q = P(t, out, 0.25); s = 1 - 0.3 * q; op = 1 - q; }
+    else { const p = P(t, t0, d); s = 0.5 + 0.5 * outBack(p); op = clamp(p * 4); }
+    e.style.transform = `scale(${s})`; e.style.opacity = op;
+  });
+}
+function typeT(e, text, t0, o = {}) {
+  const cps = o.cps || 34, out = o.out; cue(t0, 'type');
+  anim(t => {
+    if (hide(e, t, t0, out, 0)) return;
+    const n = Math.floor(clamp((t - t0) * cps, 0, text.length));
+    e.textContent = text.slice(0, n) + (n < text.length && Math.floor(t * 4) % 2 === 0 ? '█' : '');
+  });
+}
+function draw(p, t0, o = {}) {
+  const d = o.d ?? 0.5, out = o.out, c = ('c' in o) ? o.c : null; if (c) cue(t0, c);
+  const L = p.getTotalLength(); p.style.strokeDasharray = L; const me = p.getAttribute('marker-end');
+  anim(t => {
+    const on = t >= t0 && (out == null || t < out); p.style.visibility = on ? 'visible' : 'hidden';
+    const q = inOut(P(t, t0, d)); p.style.strokeDashoffset = L * (1 - q);
+    if (me) { if (q >= 0.97) p.setAttribute('marker-end', me); else p.removeAttribute('marker-end'); }
+  });
+}
+function arrow(s, d, t0, o = {}) {
+  const col = o.color === 'acc' ? '#FF5A1F' : o.color === 'paper' ? '#EDEBE6' : '#7A7D85';
+  const suf = o.color === 'acc' ? 'a' : o.color === 'paper' ? 'p' : '';
+  const p = S(s, 'path', { d, fill: 'none', stroke: col, 'stroke-width': o.w || 3, 'marker-end': `url(#${s.mid}${suf})` });
+  draw(p, t0, o); return p;
+}
+// a value that steps through [time, value] pairs; f(el, value, sinceChange)
+function steps(e, seq, f) { anim(t => { let v = seq[0][1], at = -1e9; for (const [tt, vv] of seq) if (t >= tt) { v = vv; at = tt; } f(e, v, t - at); }); }
+function flash(e, times, base, hot, dur = 0.5) {
+  anim(t => { let on = false; for (const tt of times) if (t >= tt && t < tt + dur) on = true; e.style.background = on ? hot : base; });
+}
+
+// ---------- shared pieces ----------
+function header(root, num, title, who, out) {
+  const n = T(root, 120, 62, num, { cls: 'd', size: 150, color: 'var(--acc)' });
+  const ti = T(root, 330, 86, title, { cls: 'd', size: 96 });
+  const w = T(root, 334, 188, who, { size: 28, color: 'var(--dim)' });
+  wipe(n, 0, { c: null, out }); wipe(ti, 0.5, { c: 'hit', out }); wipe(w, 1.0, { out });
+}
+// status line in the header's right side; seq = [[t, text], ...]
+function status(root, seq, end) {
+  seq.forEach(([t0, text], i) => {
+    const e = T(root, 1060, 100, text, { size: 32, color: text.startsWith('!') ? 'var(--acc)' : 'var(--paper)' });
+    e.textContent = text.replace(/^!/, '');
+    const out = i + 1 < seq.length ? seq[i + 1][0] - 0.3 : end; wipe(e, t0, { out });
+  });
+}
+
+// ================================================================ SCENE 1
+scene(0, 30, root => {
+  const ADDR = 0x1000, cells = [];
+  for (let i = 0; i < 32; i++) {
+    const b = B(root, 0, 330, 48, 72, String((ADDR >>> (31 - i)) & 1), { size: 40, border: '#3A3E46' });
+    cells.push(b); pop(b, i * 0.028, { c: null, out: 6.5 });
+  }
+  cue(0, 'type');
+  anim(t => cells.forEach((b, i) => {
+    const g = inOut(P(t, 2.0, 0.5)), grp = i >= 28 ? 2 : i >= 22 ? 1 : 0;
+    b.style.left = (120 + i * 52 + g * 28 * grp) + 'px';
+    const col = g > 0.5 ? (grp === 1 ? '#FF5A1F' : grp === 2 ? '#7A7D85' : '#EDEBE6') : '#EDEBE6';
+    const one = i === 19 && t >= 1.0 && t < 2.0;
+    b.style.color = one ? '#0E0F12' : col; b.style.background = one ? '#FF5A1F' : 'transparent'; b.style.borderColor = g > 0.5 && grp === 1 ? '#FF5A1F' : '#3A3E46';
+  }));
+  wipe(T(root, 120, 150, 'WHERE DOES 0x00001000 LIVE?', { cls: 'd', size: 120 }), 0.0, { c: null, d: 0.5, out: 6.5 });
+  cue(1.0, 'pop');
+  const lab = [[120, 'TAG · 22 bits', 1140, '#EDEBE6'], [1292, 'INDEX · 6', 308, '#FF5A1F'], [1632, 'OFFSET · 4', 204, '#7A7D85']];
+  lab.forEach(([x, s, w, col], k) => {
+    wipe(B(root, x, 414, w, 4, '', { bw: 0, bg: col }), 2.5 + k * 0.5, { c: null, out: 6.5 });
+    wipe(T(root, x, 430, s, { size: 30, color: col }), 2.5 + k * 0.5, { out: 6.5 });
+  });
+  const strip = G(root, 120, 560, 1664, 110), bars = [];
+  for (let i = 0; i < 64; i++) bars.push(B(strip, i * 26, 0, 20, 110, '', { bg: '#1B1D22', border: '#2B2E35' }));
+  wipe(strip, 0.5, { d: 0.6, out: 6.5 });
+  anim(t => { bars[0].style.background = t >= 4.5 ? '#FF5A1F' : '#1B1D22'; });
+  wipe(T(root, 120, 700, 'index 000000  →  line 0 of 64. Exactly one place.', { size: 36, color: 'var(--acc)' }), 4.5, { c: 'hit', out: 6.5 });
+
+  wipe(T(root, 112, 230, 'DIRECT-MAPPED\nCACHE CONTROLLER', { cls: 'd', size: 175 }), 7.0, { c: 'boom', out: 11.5 });
+  typeT(T(root, 120, 605, '', { size: 34, color: 'var(--dim)' }), 'Verilog HDL  ·  CSA222 Modern Computer Architecture  ·  Project 6', 8.0, { out: 11.5 });
+  wipe(T(root, 120, 680, '1 KB  ·  4-STATE FSM  ·  SELF-CHECKING TESTBENCH', { size: 34, color: 'var(--acc)' }), 10.0, { out: 11.5 });
+
+  wipe(T(root, 120, 150, 'THE TEAM', { size: 30, color: 'var(--dim)' }), 12.0, { out: 22.5 });
+  [['Tathagat Harsh', '2401010477', 'controller FSM'], ['M S Thejas', '2401010255', 'cache storage RAMs'],
+   ['Garv Verma', '2401010168', 'address decoder + comparator'], ['Parv Goyal', '2401010322', 'memory model + integration'],
+   ['Vaibhav Rajput', '2401010487', 'testbench + results']].forEach(([n, r, role], i) => {
+    const y = 210 + i * 120, t0 = 12.5 + 2 * i;
+    wipe(T(root, 120, y, n, { cls: 'd', size: 88 }), t0, { c: 'pop', out: 22.5 });
+    wipe(T(root, 820, y + 32, r, { size: 30, color: 'var(--dim)' }), t0 + 0.15, { c: null, out: 22.5 });
+    wipe(T(root, 1100, y + 32, role, { size: 30 }), t0 + 0.3, { c: null, out: 22.5 });
+  });
+
+  [[120, 230, '1 KB', 'cache data'], [980, 230, '64 LINES', 'direct-mapped'], [120, 520, '16 B BLOCKS', '4 words each'], [980, 520, 'WRITE-THROUGH', 'no-write-allocate']]
+    .forEach(([x, y, big, small], k) => {
+      const t0 = 23.0 + k * 1.5;
+      rise(T(root, x, y, big, { cls: 'd', size: 128, color: k === 3 ? 'var(--acc)' : 'var(--paper)' }), t0, { c: 'hit' });
+      wipe(T(root, x + 4, y + 140, small, { size: 30, color: 'var(--dim)' }), t0 + 0.5, { c: null });
+    });
+});
+
+// ================================================================ SCENE 2  Garv
+scene(30, 80, root => {
+  header(root, '01', 'ADDRESS → LINE', 'GARV VERMA  ·  addr_decoder.v + tag_comparator.v');
+  const sv = svgLayer(root), cells = [];
+  for (let i = 0; i < 32; i++) { const b = B(root, 120 + i * 52, 300, 48, 64, String((0x1000 >>> (31 - i)) & 1), { size: 36, border: '#3A3E46' }); cells.push(b); pop(b, 2.5 + i * 0.02, { c: i ? null : 'pop', out: 22.0 }); }
+  anim(t => cells.forEach((b, i) => {
+    const g = inOut(P(t, 3.5, 0.5)), grp = i >= 28 ? 2 : i >= 22 ? 1 : 0;
+    b.style.left = (120 + i * 52 + g * 28 * grp) + 'px';
+    b.style.color = g > .5 ? (grp === 1 ? '#FF5A1F' : grp === 2 ? '#7A7D85' : '#EDEBE6') : '#EDEBE6';
+    b.style.borderColor = g > .5 && grp === 1 ? '#FF5A1F' : '#3A3E46';
+  }));
+  [[120, 'TAG · 22', 1140, '#EDEBE6'], [1292, 'INDEX · 6', 308, '#FF5A1F'], [1632, 'OFFSET · 4', 204, '#7A7D85']].forEach(([x, s, w, col], k) => {
+    wipe(B(root, x, 378, w, 4, '', { bw: 0, bg: col }), 4.0 + k, { c: null, out: 22.0 });
+    wipe(T(root, x, 392, s, { size: 32, color: col }), 4.0 + k, { out: 22.0 });
+  });
+  wipe(T(root, 1632, 436, 'word 2\n+ byte 2', { size: 26, color: 'var(--dim)' }), 7.0, { out: 22.0 });
+  [['1024 B ÷ 16 B = 64 lines   →   6 index bits', 10], ['16-byte block              →   4 offset bits', 14], ['32 − 6 − 4                  =  22 tag bits', 18]]
+    .forEach(([s, t0], k) => typeT(T(root, 120, 520 + k * 72, '', { size: 42 }), s, t0, { out: 22.0 }));
+
+  // mapping
+  const col = G(root, 1180, 290, 600, 540); wipe(col, 22.5, { d: 0.5, out: 34.0 });
+  const rows = [];
+  for (let i = 0; i < 8; i++) { const r = B(col, 0, i * 62, 600, 54, '', { size: 28, align: 'left', pl: 20, border: '#2B2E35', bg: '#15171B' }); rows.push(r); }
+  T(col, 0, 8 * 62 + 4, '⋮   56 more lines (64 total)', { size: 26, color: 'var(--dim)' });
+  steps(rows[0], [[0, ''], [23.5, 'tag 0x000004'], [32.5, 'tag 0x000005']], (e, v, s) => { e.textContent = 'line 0     ' + v; e.style.borderColor = v.endsWith('5') && s < 1.5 ? '#FF5A1F' : '#2B2E35'; });
+  steps(rows[1], [[0, ''], [29.5, 'tag 0x000004']], (e, v) => { e.textContent = 'line 1     ' + v; });
+  for (let i = 2; i < 8; i++) rows[i].textContent = 'line ' + i;
+  [['0x00001000', 'line 0 · cold miss', 0, 23.0, null], ['0x00001004', 'line 0 · same block → hit', 0, 26.0, 'paper'],
+   ['0x00001010', 'line 1 · next block', 1, 29.0, null], ['0x00001400', 'line 0 · CONFLICT → evicts 0x1000', 0, 32.0, 'acc']]
+    .forEach(([a, note, line, t0, c], k) => {
+      const y = 300 + k * 130;
+      wipe(T(root, 120, y, a, { size: 48, color: c === 'acc' ? 'var(--acc)' : 'var(--paper)' }), t0, { c: c === 'acc' ? 'miss' : 'pop', out: 34.0 });
+      wipe(T(root, 124, y + 62, note, { size: 28, color: c === 'acc' ? 'var(--acc)' : 'var(--dim)' }), t0 + 0.25, { c: null, out: 34.0 });
+      arrow(sv, `M440 ${y + 28} C 800 ${y + 28}, 820 ${290 + line * 62 + 27}, 1170 ${290 + line * 62 + 27}`, t0 + 0.5, { color: c, out: 34.0 });
+    });
+
+  // comparator
+  const box = (x, y, w, lab, val) => { wipe(T(root, x, y - 40, lab, { size: 28, color: 'var(--dim)' }), 0, { c: null, out: 1e9 }); return B(root, x, y, w, 100, val, { size: 48 }); };
+  const st = box(120, 320, 440, 'stored tag (tag RAM)', '0x000004'), rq = box(120, 490, 440, 'request tag (address)', '0x000004'), va = box(120, 660, 200, 'valid bit', '1');
+  // labels above boxes share the boxes' timing
+  root.querySelectorAll('div').forEach(() => {});
+  rise(st, 34.5, { out: 1e9 }); rise(rq, 35.5); rise(va, 40.0);
+  const eq = B(root, 720, 380, 150, 150, '==', { size: 48, r: 75, border: '#EDEBE6' }); pop(eq, 36.5);
+  steps(eq, [[0, '=='], [38.5, '✓']], (e, v, s) => { e.textContent = v; e.style.color = v === '✓' ? '#0E0F12' : '#EDEBE6'; e.style.background = v === '✓' ? '#EDEBE6' : 'transparent'; });
+  const and = B(root, 1040, 480, 200, 170, 'AND', { cls: 'd', size: 56, border: '#EDEBE6' }); pop(and, 41.5);
+  arrow(sv, 'M560 370 C 640 370, 640 430, 712 430', 37.0);
+  arrow(sv, 'M560 540 C 640 540, 640 480, 712 480', 37.0);
+  arrow(sv, 'M320 710 C 700 710, 880 610, 1032 610', 40.5);
+  arrow(sv, 'M870 455 C 960 455, 960 520, 1032 520', 41.5, { color: 'paper' });
+  arrow(sv, 'M1240 565 L 1330 565', 43.0, { color: 'paper' });
+  steps(va, [[0, '1'], [45.0, '0']], (e, v) => { e.textContent = v; e.style.color = v === '0' ? '#FF5A1F' : '#EDEBE6'; e.style.borderColor = v === '0' ? '#FF5A1F' : '#2B2E35'; });
+  wipe(T(root, 1350, 480, 'HIT', { cls: 'd', size: 170 }), 43.0, { c: 'hit', out: 46.5 });
+  wipe(T(root, 1350, 480, 'MISS', { cls: 'd', size: 170, color: 'var(--acc)' }), 46.5, { c: 'miss' });
+  wipe(T(root, 1354, 680, 'valid = 0 → never a\nfalse hit', { size: 30, color: 'var(--dim)' }), 47.5, { c: null });
+  // the three small labels above comparator boxes must follow the boxes
+  const labs = [...root.children].filter(e => /stored tag|request tag|valid bit/.test(e.textContent));
+  anim(t => { labs[0].style.visibility = t >= 34.5 ? 'visible' : 'hidden'; labs[1].style.visibility = t >= 35.5 ? 'visible' : 'hidden'; labs[2].style.visibility = t >= 40 ? 'visible' : 'hidden'; });
+});
+
+// ================================================================ SCENE 3  Thejas
+scene(80, 130, root => {
+  header(root, '02', 'STORAGE', 'M S THEJAS  ·  cache_rams.v');
+  status(root, [[8.0, '64 × (1 + 22 + 128) = 9,664 bits'], [11.0, '!rst → all 64 valid bits = 0'], [16.0, 'tag matches, valid = 0 → no hit'],
+                [20.0, 'block_we: 128-bit line, one cycle'], [26.0, 'word_we: one 32-bit word']], 31.0);
+  const R = 14, y0 = 300, rh = 36;
+  const vcol = G(root, 120, 250, 80, 600), tcol = G(root, 220, 250, 300, 600), dcol = G(root, 550, 250, 1250, 600);
+  T(vcol, 0, 0, 'VALID', { size: 26, color: 'var(--dim)' }); T(tcol, 0, 0, 'TAG  64 × 22', { size: 26, color: 'var(--dim)' }); T(dcol, 0, 0, 'DATA  64 × 128 = 1 KB   (word 0 · 1 · 2 · 3)', { size: 26, color: 'var(--dim)' });
+  wipe(vcol, 2.5, { out: 31.0 }); wipe(tcol, 4.0, { out: 31.0 }); wipe(dcol, 5.5, { d: 0.6, out: 31.0 });
+  const V = [], Tg = [], D = [];
+  for (let r = 0; r < R; r++) {
+    const y = 50 + r * rh;
+    V.push(B(vcol, 0, y, 70, rh - 4, '?', { size: 26, border: '#2B2E35', bg: '#15171B' }));
+    Tg.push(B(tcol, 0, y, 300, rh - 4, '0x' + hex(Math.floor(rnd() * 0x3FFFFF), 6), { size: 26, border: '#2B2E35', bg: '#15171B', color: '#7A7D85' }));
+    const row = [];
+    for (let w = 0; w < 4; w++) row.push(B(dcol, w * 312, y, 304, rh - 4, hex(Math.floor(rnd() * 2 ** 32)), { size: 26, border: '#2B2E35', bg: '#15171B', color: '#7A7D85' }));
+    D.push(row);
+  }
+  T(dcol, 0, 50 + R * rh + 4, '⋮  64 lines', { size: 24, color: 'var(--dim)' });
+  V.forEach((e, r) => steps(e, r === 0 ? [[0, '?'], [11 + r * 0.06, '0'], [22.5, '1']] : [[0, '?'], [11 + r * 0.06, '0']],
+    (el, v, s) => { el.textContent = v; el.style.color = v === '?' ? '#7A7D85' : v === '1' ? '#0E0F12' : '#EDEBE6'; el.style.background = v === '1' ? '#EDEBE6' : (v === '0' && s < 0.25 ? '#FF5A1F' : '#15171B'); }));
+  cue(11.0, 'miss');
+  flash(Tg[3], [16.0], '#15171B', '#3A1A10', 3.5); flash(V[3], [16.0], '#15171B', '#3A1A10', 3.5);
+  steps(Tg[0], [[0, Tg[0].textContent], [21.5, '0x000004']], (e, v, s) => { e.textContent = v; e.style.color = v === '0x000004' ? '#EDEBE6' : '#7A7D85'; e.style.background = v === '0x000004' && s < 0.5 ? '#FF5A1F' : '#15171B'; });
+  cue(21.5, 'pop'); cue(22.5, 'pop'); cue(20.5, 'hit');
+  const blk = [0, 1, 2, 3].map(w => hex(initWord(1024 + w)));
+  D[0].forEach((e, w) => steps(e, [[0, e.textContent], [20.5, blk[w]], ...(w === 2 ? [[27.0, 'DEADBEEF']] : [])],
+    (el, v, s) => { const fresh = v !== D[0][w].dataset.g; el.textContent = v; el.style.color = v.length && (v === blk[w] || v === 'DEADBEEF') ? '#EDEBE6' : '#7A7D85'; el.style.background = (v === blk[w] || v === 'DEADBEEF') && s < 0.5 ? '#FF5A1F' : '#15171B'; }));
+  cue(27.0, 'hit');
+  [['1 TAG COMPARE PER ACCESS', 32], ['NO REPLACEMENT POLICY', 35], ['SHORTEST HIT PATH', 38]].forEach(([s, t0], k) => rise(T(root, 120, 290 + k * 110, s, { cls: 'd', size: 84 }), t0, { c: 'hit' }));
+  rise(T(root, 120, 640, 'COST: CONFLICT MISSES', { cls: 'd', size: 84, color: 'var(--acc)' }), 42, { c: 'miss' });
+  wipe(T(root, 124, 750, 'M. D. Hill, "A case for direct-mapped caches", IEEE Computer, 1988', { size: 28, color: 'var(--dim)' }), 44);
+  wipe(T(root, 124, 800, '→ Phase II: compare with a 2-way set-associative cache', { size: 28 }), 47);
+});
+
+// ================================================================ SCENE 4  Tathagat
+scene(130, 180, root => {
+  header(root, '03', 'CONTROLLER FSM', 'TATHAGAT HARSH  ·  cache_controller.v');
+  status(root, [[8.0, 'READ  0x00001000'], [17.5, '!read miss: 12 cycles'], [20.0, 'READ  0x00001004'], [23.5, 'read hit: 1 cycle'],
+                [26.0, 'WRITE 0x00001008 ← DEADBEEF'], [35.5, 'write-through: no dirty bits'], [40.0, 'hit = 1 cycle · miss = L + 2 = 12'],
+                [43.0, 'mem_req = ALLOCATE | WRITE_MEM'], [46.0, '!hardware hit / miss counters']], 50);
+  const sv = svgLayer(root);
+  const C = { IDLE: [320, 565], COMPARE: [880, 565], ALLOCATE: [1430, 390], WRITE: [1430, 740] };
+  const circ = (k, label, t0) => { const [x, y] = C[k]; const e = B(root, x - 95, y - 95, 190, 190, label, { cls: 'd', size: 40, r: 95, border: '#EDEBE6', bg: '#0E0F12', lh: label.includes('\n') ? 44 : 186 }); if (label.includes('\n')) { e.style.whiteSpace = 'pre'; e.style.paddingTop = '50px'; } pop(e, t0); return e; };
+  const edges = [
+    ['M415 525 C 560 470, 640 470, 783 525', 'cpu_req', 560, 448], ['M785 610 C 640 665, 560 665, 417 610', 'read hit', 520, 668],
+    ['M968 520 L 1338 425', 'read miss', 1080, 420], ['M968 610 L 1338 700', 'write', 1150, 676],
+    ['M1385 305 C 1180 250, 520 250, 360 472', 'mem_ready', 770, 252], ['M1390 830 C 1080 880, 520 870, 365 660', 'mem_ready', 760, 856]];
+  edges.forEach(([d, lab, lx, ly], k) => { arrow(sv, d, 5.0 + k * 0.3, { c: k ? null : 'tick' }); wipe(T(root, lx, ly - 4, lab, { size: 30, color: 'var(--dim)' }), 5.3 + k * 0.3, { c: null }); });
+  circ('IDLE', 'IDLE', 2.5); circ('COMPARE', 'COMPARE', 3.0); circ('ALLOCATE', 'ALLOCATE', 3.5); circ('WRITE', 'WRITE\nMEM', 4.0);
+  const ring = B(root, 0, 0, 236, 236, '', { r: 118, border: '#FF5A1F', bw: 5 });
+  const path = [[8, 'IDLE'], [9, 'COMPARE'], [11, 'ALLOCATE'], [17, 'IDLE'], [21, 'COMPARE'], [23, 'IDLE'], [27, 'COMPARE'], [29, 'WRITE'], [35, 'IDLE']];
+  path.slice(1).forEach(([t0]) => cue(t0, 'tick'));
+  anim(t => {
+    ring.style.visibility = t >= 8 && t < 39.5 ? 'visible' : 'hidden';
+    let i = 0; while (i + 1 < path.length && t >= path[i + 1][0]) i++;
+    let [x, y] = C[path[i][1]];
+    if (i > 0) { const [px, py] = C[path[i - 1][1]], q = inOut(P(t, path[i][0], 0.4)); x = px + (x - px) * q; y = py + (y - py) * q; }
+    ring.style.left = (x - 118) + 'px'; ring.style.top = (y - 118) + 'px';
+  });
+  const flashTxt = (s, t0, col, c) => wipe(T(root, 760, 330, s, { cls: 'd', size: 64, color: col }), t0, { c, out: t0 + 1.2 });
+  flashTxt('MISS', 10.0, 'var(--acc)', 'miss'); flashTxt('HIT', 22.0, 'var(--paper)', 'hit'); flashTxt('HIT → word', 28.0, 'var(--paper)', 'hit');
+  const ticks = (y, t0) => { const cs = []; for (let i = 0; i < 10; i++) cs.push(B(root, 1545 + i * 26, y, 22, 50, '', { bw: 2, border: '#3A3E46' }));
+    anim(t => cs.forEach((c, i) => { const on = t >= t0 + 0.5 * i && t < t0 + 6; c.style.background = on ? '#FF5A1F' : 'transparent'; c.style.visibility = t >= 5 ? 'visible' : 'hidden'; }));
+    for (let i = 0; i < 10; i++) cue(t0 + 0.5 * i, 'tick');
+    wipe(T(root, 1545, y - 44, 'mem_ready', { size: 28, color: 'var(--acc)' }), t0 + 5.0, { c: 'pop', out: t0 + 6.0 }); };
+  ticks(365, 11.5); ticks(715, 29.5);
+  const ctr = T(root, 1060, 160, '', { size: 28, color: 'var(--dim)' });
+  anim(t => { ctr.style.visibility = t >= 7.5 ? 'visible' : 'hidden'; const h = (t >= 22) + (t >= 28), m = +(t >= 10); ctr.textContent = `hit_count ${h}   miss_count ${m}`; ctr.style.color = t >= 46 ? '#FF5A1F' : '#7A7D85'; });
+  cue(7.5, 'tick');
+});
+
+// ================================================================ SCENE 5  Parv
+scene(180, 230, root => {
+  header(root, '04', 'MEMORY + INTEGRATION', 'PARV GOYAL  ·  main_memory.v + dm_cache.v');
+  wipe(T(root, 120, 290, 'main_memory  ·  latency = 10 cycles', { size: 40 }), 2.5, { out: 12.5 });
+  const cs = []; for (let i = 0; i < 10; i++) cs.push(B(root, 120 + i * 132, 370, 120, 90, String(i + 1), { size: 34, border: '#3A3E46' }));
+  const cg = cs; anim(t => cg.forEach((c, i) => { const on = t >= 3.0 + i * 0.5; c.style.visibility = t >= 2.5 && t < 12.5 ? 'visible' : 'hidden'; c.style.background = on ? '#EDEBE6' : 'transparent'; c.style.color = on ? '#0E0F12' : '#7A7D85'; }));
+  for (let i = 0; i < 10; i++) cue(3.0 + i * 0.5, 'tick');
+  wipe(T(root, 1460, 390, 'mem_ready', { cls: 'd', size: 64, color: 'var(--acc)' }), 8.0, { c: 'hit', out: 12.5 });
+  [0, 1, 2, 3].forEach(w => wipe(B(root, 120 + w * 330, 540, 310, 90, hex(initWord(1024 + w)), { size: 40, border: '#EDEBE6' }), 8.5 + w * 0.125, { c: w ? null : 'pop', out: 12.5 }));
+  wipe(T(root, 120, 660, '128-bit block in one transfer  →  4 words for the cache line', { size: 32, color: 'var(--dim)' }), 9.5, { out: 12.5 });
+
+  const sv = svgLayer(root);
+  const shell = B(root, 120, 280, 1380, 560, '', { border: '#3A3E46', bw: 2 }); shell.style.borderStyle = 'dashed'; wipe(shell, 13.0, { d: 0.6, out: 24.5 });
+  wipe(T(root, 150, 296, 'dm_cache', { cls: 'd', size: 56 }), 13.0, { c: null, out: 24.5 });
+  ['addr_decoder', 'cache_tag_ram', 'valid_ram', 'cache_data_ram', 'tag_comparator', 'cache_controller'].forEach((m, k) => {
+    const x = 160 + (k % 3) * 440, y = 400 + Math.floor(k / 3) * 200;
+    wipe(B(root, x, y, 400, 120, m, { size: 30, border: k === 5 ? '#FF5A1F' : '#EDEBE6', bg: '#15171B' }), 14.0 + k, { c: 'pop', out: 24.5 });
+  });
+  wipe(B(root, 1590, 470, 230, 150, 'main\nmemory', { size: 30, border: '#7A7D85', lh: 40 }), 20.0, { c: 'pop', out: 24.5 });
+  arrow(sv, 'M1502 545 L 1582 545', 21.0, { out: 24.5, c: 'tick' });
+  wipe(T(root, 1590, 650, 'outside the cache\n(simulation only)', { size: 24, color: 'var(--dim)' }), 22.0, { c: null, out: 24.5 });
+
+  const term = B(root, 120, 260, 1680, 600, '', { bw: 0, bg: '#15171B' }); wipe(term, 25.0, { c: null, out: 33.0 });
+  typeT(T(root, 160, 290, '', { size: 30, color: 'var(--acc)' }), '$ ./scripts/run_sim.sh', 25.0, { out: 33.0, cps: 18 });
+  ['+------------+--------+-------+-------+----------+--------+', '| trace      | access |  hits | miss  | hit rate | AMAT   |', '+------------+--------+-------+-------+----------+--------+',
+   '|   directed |     11 |     6 |     5 |   54.55% |   5.89 |', '| sequential |    512 |   384 |   128 |   75.00% |   3.75 |', '|   repeated |    512 |   480 |    32 |   93.75% |   1.69 |',
+   '|     random |    512 |    53 |   459 |   10.35% |  10.86 |', '|   conflict |    128 |     0 |   128 |    0.00% |  12.00 |', '|   mixed_rw |    512 |   217 |   295 |   42.38% |   7.19 |',
+   '+------------+--------+-------+-------+----------+--------+'].forEach((l, k) => {
+    const e = T(root, 160, 350 + k * 40, l, { size: 28 }); const t0 = 27.0 + Math.floor(k / 2) * 0.5;
+    anim(t => { e.style.visibility = t >= t0 && t < 33.0 ? 'visible' : 'hidden'; });
+    if (k % 2 === 0) cue(t0, 'tick');
+  });
+  wipe(T(root, 160, 770, 'ALL CHECKS PASSED  ·  2,187 accesses  ·  0 mismatches', { size: 36, color: 'var(--acc)' }), 30.5, { c: 'hit', out: 33.0 });
+
+  const img = document.createElement('img'); img.src = 'assets/wave_miss_then_hits.png'; img.className = 'abs';
+  Object.assign(img.style, { left: '120px', top: '262px', width: '1680px' }); root.appendChild(img); window.WAVE = img;
+  wipe(img, 33.5, { d: 0.7, c: 'boom' });
+  const ph = B(root, 0, 262, 4, 464, '', { bw: 0, bg: '#FF5A1F' });
+  const key = [[35, .17], [38, .3], [42, .68], [45, .76], [48.5, .985]];
+  anim(t => { ph.style.visibility = t >= 35 ? 'visible' : 'hidden'; let f = key[0][1];
+    for (let i = 0; i + 1 < key.length; i++) if (t >= key[i][0]) f = key[i][1] + (key[i + 1][1] - key[i][1]) * inOut(P(t, key[i][0], key[i + 1][0] - key[i][0]));
+    ph.style.left = (120 + f * 1680) + 'px'; });
+  [['COMPARE: tag check, valid = 0 → miss', 35], ['ALLOCATE: mem_req held for 10 cycles', 38], ['!mem_ready → cpu_ready: 12 cycles total', 42], ['next 3 reads: HIT in 1 cycle each', 45]]
+    .forEach(([s, t0], k, arr) => { const e = T(root, 120, 770, s.replace('!', ''), { size: 36, color: s[0] === '!' ? 'var(--acc)' : 'var(--paper)' }); wipe(e, t0, { out: k + 1 < arr.length ? arr[k + 1][1] - 0.3 : 50 }); });
+});
+
+// ================================================================ SCENE 6  Vaibhav
+scene(230, 300, root => {
+  header(root, '05', 'RESULTS', 'VAIBHAV RAJPUT  ·  tb_dm_cache.v', 62.5);
+  const big = T(root, 112, 260, '0', { cls: 'd', size: 240 }); rise(big, 2.5, { c: 'type', out: 9.5 });
+  anim(t => { big.textContent = Math.round(2187 * outC(P(t, 2.5, 3.0))).toLocaleString('en-US'); });
+  wipe(T(root, 124, 510, 'accesses checked against a golden reference model', { size: 34, color: 'var(--dim)' }), 3.5, { out: 9.5 });
+  wipe(T(root, 120, 600, '0 ERRORS', { cls: 'd', size: 140, color: 'var(--acc)' }), 6.5, { c: 'hit', out: 9.5 });
+
+  [['sequential', 75.00, 'spatial'], ['repeated', 93.75, 'temporal'], ['random', 10.35, '8 KB set'], ['conflict', 0.00, 'thrashing'], ['mixed r/w', 42.38, '3/8 writes'], ['directed', 54.55, 'corner cases']]
+    .forEach(([n, v, note], k) => {
+      const y = 270 + k * 92, t0 = 10.5 + k * 3, acc = n === 'conflict';
+      wipe(T(root, 120, y + 6, n, { size: 36 }), t0, { c: acc ? 'miss' : 'pop', out: 30.0 });
+      const bar = B(root, 470, y, 10, 60, '', { bw: 0, bg: acc ? '#FF5A1F' : '#EDEBE6' });
+      const val = T(root, 0, y + 6, '', { size: 36, color: acc ? 'var(--acc)' : 'var(--paper)' });
+      const nt = T(root, 1580, y + 12, note, { size: 28, color: acc ? 'var(--acc)' : 'var(--dim)' }); wipe(nt, t0 + 1.0, { c: null, out: 30.0 });
+      anim(t => { const on = t >= t0 && t < 30.3; bar.style.visibility = val.style.visibility = on ? 'visible' : 'hidden';
+        const p = outC(P(t, t0, 1.0)), w = 900 * v / 100 * p; bar.style.width = Math.max(acc ? 6 : 0, w) + 'px';
+        val.style.left = (470 + Math.max(6, w) + 24) + 'px'; val.textContent = (v * p).toFixed(2) + '%'; });
+    });
+  wipe(T(root, 120, 840 - 10, 'hit rate per trace  ·  cache reset before each', { size: 26, color: 'var(--dim)' }), 11.0, { c: null, out: 30.0 });
+
+  wipe(T(root, 120, 330, '0x00005000', { size: 52 }), 30.5, { c: 'pop', out: 40.0 });
+  wipe(T(root, 120, 560, '0x00005400', { size: 52 }), 31.0, { c: 'pop', out: 40.0 });
+  wipe(T(root, 124, 650, '+1 KB → same index, different tag', { size: 30, color: 'var(--dim)' }), 32.0, { c: null, out: 40.0 });
+  const ln = B(root, 760, 380, 640, 200, '', { size: 44, border: '#EDEBE6', bg: '#15171B', lh: 196 }); wipe(ln, 30.5, { c: null, out: 40.0 });
+  wipe(T(root, 778, 392, 'line 0', { size: 26, color: 'var(--dim)' }), 30.5, { c: null, out: 40.0 });
+  const mc = T(root, 1460, 420, '', { cls: 'd', size: 110, color: 'var(--acc)' }); wipe(mc, 31.5, { c: null, out: 40.0 });
+  const sw = []; for (let k = 0; k < 8; k++) { sw.push(31.5 + k); cue(31.5 + k, 'miss'); }
+  anim(t => { const k = sw.filter(x => t >= x).length; ln.textContent = k === 0 ? '' : (k % 2 ? 'tag 0x000014  (5000)' : 'tag 0x000015  (5400)');
+    ln.style.borderColor = k && (t - sw[k - 1]) < 0.3 ? '#FF5A1F' : '#EDEBE6'; mc.textContent = `MISS ×${k}`; });
+
+  wipe(T(root, 120, 270, 'AMAT = 1 + m × 11', { cls: 'd', size: 110 }), 40.5, { c: 'hit', out: 52.0 });
+  wipe(T(root, 124, 396, 'trace          measured   formula', { size: 34, color: 'var(--dim)' }), 42.0, { out: 52.0 });
+  [['directed', '5.89'], ['sequential', '3.75'], ['repeated', '1.69'], ['random', '10.86'], ['conflict', '12.00'], ['mixed_rw', '7.19']].forEach(([n, a], k) => {
+    const s = n.padEnd(15) + a.padStart(8) + a.padStart(10) + '   ✓';
+    wipe(T(root, 124, 450 + k * 62, s, { size: 40 }), 43.0 + k, { out: 52.0 });
+  });
+
+  wipe(T(root, 120, 260, 'PHASE II', { size: 30, color: 'var(--dim)' }), 52.5, { out: 62.5 });
+  ['VIVADO: AREA + FMAX', '2-WAY SET-ASSOCIATIVE LRU', 'SIZE / BLOCK / LATENCY SWEEPS', 'WRITE BUFFER VS WRITE-BACK'].forEach((s, k) =>
+    rise(T(root, 120, 320 + k * 120, s, { cls: 'd', size: 92, color: k === 1 ? 'var(--acc)' : 'var(--paper)' }), 53.0 + 2 * k, { c: 'hit', out: 62.5 }));
+
+  rise(T(root, 112, 200, 'THANK YOU', { cls: 'd', size: 230 }), 63.0, { c: 'boom' });
+  wipe(T(root, 124, 470, 'Tathagat Harsh  ·  M S Thejas  ·  Garv Verma  ·  Parv Goyal  ·  Vaibhav Rajput', { size: 34 }), 64.5);
+  wipe(T(root, 124, 530, 'Direct-Mapped Cache Controller  ·  CSA222 Project 6  ·  Rishihood University / NST', { size: 30, color: 'var(--dim)' }), 66.0);
+  wipe(B(root, 124, 610, 640, 6, '', { bw: 0, bg: '#FF5A1F' }), 67.0, { c: 'tick' });
+});
+
+// ================================================================ global: captions + section wipes
+const CAPS = [
+  [0, 7, 'TATHAGAT HARSH', 'Where does address 0x1000 live? In a direct-mapped cache: in exactly one line.'],
+  [7, 12, 'TATHAGAT HARSH', 'This is our CSA222 project: a Direct-Mapped Cache Controller in Verilog.'],
+  [12, 23, 'TATHAGAT HARSH', "I'm Tathagat Harsh, and with me are M S Thejas, Garv Verma, Parv Goyal and Vaibhav Rajput."],
+  [23, 30, 'TATHAGAT HARSH', 'A cache is a small, fast SRAM between the CPU and slow DRAM. It works because programs have locality.'],
+  [30, 40, 'GARV VERMA', 'Our cache is 1 KB with 16-byte blocks, so it has 64 lines.'],
+  [40, 52, 'GARV VERMA', 'A 32-bit address splits into a 22-bit tag, a 6-bit index and a 4-bit offset.'],
+  [52, 64, 'GARV VERMA', 'Direct-mapped means each block has exactly one possible line, chosen by the index. Same index means a fight.'],
+  [64, 74, 'GARV VERMA', 'My tag comparator gives: hit = valid AND stored tag equals request tag.'],
+  [74, 80, 'GARV VERMA', "If the valid bit is 0, it's a miss, even when the tags match."],
+  [80, 90, 'M S THEJAS', 'The cache stores everything in three arrays: valid bits, tags and data.'],
+  [90, 100, 'M S THEJAS', 'Valid bits are flip-flops: one reset clears all 64, so a garbage tag never gives a false hit.'],
+  [100, 111, 'M S THEJAS', 'On a miss the data RAM takes a whole 16-byte block in one cycle. On a write hit, just one word.'],
+  [111, 130, 'M S THEJAS', 'Direct-mapped gives the fastest hit path: one compare, no replacement policy. The cost is conflict misses.'],
+  [130, 138, 'TATHAGAT HARSH', 'I designed the controller: a four-state finite state machine.'],
+  [138, 149, 'TATHAGAT HARSH', 'IDLE latches the request. COMPARE checks the tag. A read miss goes to ALLOCATE and waits ten cycles for memory.'],
+  [149, 155, 'TATHAGAT HARSH', 'A read hit finishes in a single cycle.'],
+  [155, 169, 'TATHAGAT HARSH', 'Every write goes to WRITE_MEM: write-through, no-write-allocate. Memory is always up to date, so no dirty bits.'],
+  [169, 180, 'TATHAGAT HARSH', 'The hit and miss counters live here, so the hardware measures its own hit rate.'],
+  [180, 193, 'PARV GOYAL', 'My main-memory model has a ten-cycle latency and returns a whole 128-bit block in one transfer.'],
+  [193, 205, 'PARV GOYAL', 'dm_cache.v connects six modules into one cache, with main memory outside it.'],
+  [205, 213, 'PARV GOYAL', 'One command compiles and runs the full testbench.'],
+  [213, 230, 'PARV GOYAL', 'In the waveform the first read misses and takes 12 cycles. The next three reads hit in one cycle each.'],
+  [230, 240, 'VAIBHAV RAJPUT', 'My testbench checks all 2,187 accesses against a golden reference model. Zero errors.'],
+  [240, 260, 'VAIBHAV RAJPUT', 'Sequential: 75%, one miss per 4-word block. Repeated: 93.75%, temporal locality. Random: about 10%.'],
+  [260, 270, 'VAIBHAV RAJPUT', 'Conflict: 0%. Two addresses 1 KB apart share line 0 and keep evicting each other.'],
+  [270, 282, 'VAIBHAV RAJPUT', 'Measured AMAT matches 1 + miss rate × 11 on every single trace.'],
+  [282, 292, 'VAIBHAV RAJPUT', "In Phase II we'll synthesize on Vivado and compare against a 2-way LRU cache."],
+  [292, 300, 'VAIBHAV RAJPUT', 'Thank you!'],
+];
+const capWho = T(stage, 120, 900, '', { size: 26, color: 'var(--acc)' });
+const capTxt = T(stage, 120, 938, '', { size: 40, w: 1680 }); capTxt.style.lineHeight = '1.18';
+const SHOW_CAPS = !/nocaps/.test(location.search);
+GLOBAL.push(t => {
+  // with recorded voices, captions follow the voice timing (cap_times.js from voiceover/voice.py)
+  const CT = window.CAP_TIMES && window.CAP_TIMES.length === CAPS.length ? window.CAP_TIMES : null;
+  const span = i => CT ? [CT[i][0], i + 1 < CAPS.length ? CT[i + 1][0] : DUR] : [CAPS[i][0], CAPS[i][1]];
+  const ci = CAPS.findIndex((_, i) => t >= span(i)[0] && t < span(i)[1]);
+  const c = ci < 0 ? null : [span(ci)[0], span(ci)[1], CAPS[ci][2], CAPS[ci][3]];
+  capWho.style.visibility = capTxt.style.visibility = SHOW_CAPS && c ? 'visible' : 'hidden';
+  if (!c) return;
+  capWho.textContent = c[2]; capTxt.textContent = c[3];
+  const p = outC(P(t, c[0], 0.3)); capTxt.style.transform = `translateY(${(1 - p) * 16}px)`; capTxt.style.clipPath = p >= 1 ? 'none' : `inset(0 0 ${100 - 100 * p}% 0)`;
+});
+const panel = B(stage, 0, 0, W, H, '', { bw: 0, bg: '#FF5A1F' });
+const CUTS = [30, 80, 130, 180, 230];
+GLOBAL.push(t => {
+  let x = null; for (const b of CUTS) { const p = P(t, b - 0.3, 0.6); if (p > 0 && p < 1) x = -W + 2 * W * inOut(p); }
+  panel.style.visibility = x == null ? 'hidden' : 'visible'; panel.style.transform = `translateX(${x ?? 0}px)`;
+});
+CUTS.forEach(b => CUES.push({ t: b, type: 'boom' }));
+CUES.push({ t: 0, type: 'hit' });
+CUES.sort((a, b) => a.t - b.t);
+
+window.seek = t => {
+  for (const sc of SCENES) { const on = t >= sc.start && t < sc.end; sc.root.style.display = on ? 'block' : 'none';
+    if (on) { sc.root.style.transformOrigin = '0 45%'; sc.root.style.transform = `scale(${1 + 0.02 * (t - sc.start) / (sc.end - sc.start)})`; for (const f of sc.anims) f(t - sc.start); } }
+  for (const f of GLOBAL) f(t);
+};
+window.DURATION = DUR;
+(window.WAVE ? window.WAVE.decode() : Promise.resolve()).then(() => document.fonts.ready).then(() => { window.seek(0); window.READY = true; });
+</script></body></html>
