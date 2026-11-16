@@ -1,0 +1,5 @@
+sim/*.vvp
+*.aux
+*.log
+.DS_Store
+__pycache__/
