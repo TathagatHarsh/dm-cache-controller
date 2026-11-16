@@ -1,0 +1,30 @@
+digraph dm_cache {
+  rankdir=LR; splines=spline; nodesep=0.45; ranksep=0.7; newrank=true;
+  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=11, fillcolor="#eef3fb", color="#2f5597"];
+  edge [fontname="Helvetica", fontsize=9, color="#444444"];
+
+  cpu [label="CPU /\nTestbench", fillcolor="#e8e8e8", color="#555555"];
+  subgraph cluster_cache {
+    label="dm_cache  (1 KB, 64 lines x 16 B)"; fontname="Helvetica-Bold"; fontsize=12;
+    style="rounded,dashed"; color="#2f5597";
+    ctrl [label="cache_controller\n(FSM: IDLE / COMPARE /\nALLOCATE / WRITE_MEM)\n+ hit / miss counters", fillcolor="#fff3c4", color="#b38f00"];
+    dec  [label="addr_decoder\ntag[31:10] | index[9:4] | word[3:2]"];
+    tag  [label="cache_tag_ram\n64 x 22 b"];
+    val  [label="valid_ram\n64 x 1 b"];
+    data [label="cache_data_ram\n64 x 128 b"];
+    cmp  [label="tag_comparator\nhit = valid & (tag==tag')", fillcolor="#dff0d8", color="#3c763d"];
+    mux  [label="word select\nMUX", shape=trapezium, orientation=270];
+  }
+  mem [label="main_memory\n(latency = 10 cycles,\n128-bit block read)", fillcolor="#ffd9d2", color="#a94442"];
+
+  cpu -> ctrl [label="req, we, addr, wdata"];
+  ctrl -> dec [label="addr_q"];
+  dec -> tag [label="index"]; dec -> val; dec -> data;
+  dec -> cmp [label="tag"];
+  tag -> cmp; val -> cmp;
+  cmp -> ctrl [label="hit"];
+  data -> mux; mux -> cpu [label="rdata, ready, hit", constraint=false, color="#2f5597"];
+  ctrl -> mem [dir=both, label="  mem_req, we, addr, wdata (down)\l  mem_ready (up)\l"];
+  mem -> data [label="128-bit refill block"];
+  {rank=same; ctrl; mem;}
+}
