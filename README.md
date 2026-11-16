@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | Report (Phase I, IEEE format) | [`docs/report/main.pdf`](docs/report/main.pdf) |
-| Prototype demo video | **ADD LINK HERE** |
+| Prototype demo video | (https://drive.google.com/drive/folders/1XrK8QC8PR5nWN_Udr-LCHOQUd5ePlpkO?usp=sharing) |
 | Team | Tathagat Harsh (2401010477) · M S Thejas (2401010255) · Garv Verma (2401010168) · Parv Goyal (2401010322) · Vaibhav Rajput (2401010487) |
 
 A 1 KB direct-mapped cache with 16-byte blocks and 32-bit addresses. It uses a write-through, no-write-allocate policy and is driven by a 4-state controller FSM. The design is verified by a self-checking testbench that compares **every** access against a golden reference model.
