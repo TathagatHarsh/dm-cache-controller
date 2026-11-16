@@ -1,0 +1,18 @@
+VCD info: dumpfile dm_cache.vcd opened for output.
+
+Direct-mapped cache: 1 KB, 16 B blocks, 64 lines, write-through / no-write-allocate, MEM_LATENCY=10
++------------+--------+-------+-------+----------+----------+--------+--------+
+| trace      | access |  hits | miss  | hit rate | miss rate| AMAT m | AMAT f |
++------------+--------+-------+-------+----------+----------+--------+--------+
+|   directed |     11 |     6 |     5 |   54.55% |   45.45% |   5.89 |   5.89 |
+| sequential |    512 |   384 |   128 |   75.00% |   25.00% |   3.75 |   3.75 |
+|   repeated |    512 |   480 |    32 |   93.75% |    6.25% |   1.69 |   1.69 |
+|     random |    512 |    53 |   459 |   10.35% |   89.65% |  10.86 |  10.86 |
+|   conflict |    128 |     0 |   128 |    0.00% |  100.00% |  12.00 |  12.00 |
+|   mixed_rw |    512 |   217 |   295 |   42.38% |   57.62% |   7.19 |   7.19 |
++------------+--------+-------+-------+----------+----------+--------+--------+
+AMAT m = measured avg read latency (cycles); AMAT f = 1 + read_miss_rate x 11
+
+ALL CHECKS PASSED (every access matched the reference model)
+
+../tb/tb_dm_cache.v:219: $finish called at 166950000 (1ps)

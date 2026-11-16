@@ -1,0 +1,7 @@
+trace,accesses,hits,misses,hit_rate_pct,miss_rate_pct,amat_measured_cycles,amat_formula_cycles
+directed,11,6,5,54.55,45.45,5.889,5.889
+sequential,512,384,128,75.00,25.00,3.750,3.750
+repeated,512,480,32,93.75,6.25,1.688,1.688
+random,512,53,459,10.35,89.65,10.861,10.861
+conflict,128,0,128,0.00,100.00,12.000,12.000
+mixed_rw,512,217,295,42.38,57.62,7.192,7.192
