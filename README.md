@@ -47,17 +47,46 @@ A 1 KB direct-mapped cache with 16-byte blocks and 32-bit addresses. It uses a w
 
 ![waveform](docs/figures/wave_miss_then_hits.png)
 
+## Phase II: 2-way set-associative LRU cache + evaluation
+
+Final report: [`docs/report/final.pdf`](docs/report/final.pdf) (Phase I report kept at `docs/report/main.pdf`).
+
+`sa2_cache` has the **same interface** as `dm_cache`: 2 ways × 32 sets × 16 B, one LRU bit per set, victim = an invalid way first, otherwise LRU. One testbench (`tb/tb_cache.v`) runs either cache against a reference model covering both organisations, plus a write-back traffic model.
+
+| 1 KB, 16 B, L = 10 | Direct-mapped | 2-way LRU |
+|---|---:|---:|
+| conflict trace hit rate | 0.00 % | **98.44 %** |
+| mixed r/w hit rate / AMAT | 42.38 % / 7.19 | 44.34 % / 6.99 |
+| mean hit rate, 5 workloads | 44.3 % | 64.2 % |
+| logic LUTs / LUTRAM LUTs / FFs (Artix-7, Yosys) | 412 / 544 / 202 | 805 / 1,056 / 234 |
+| LUT levels / est. Fmax | 6 / ≈204 MHz | 7 / ≈185 MHz |
+
+22 configurations (size 256 B–4 KB, block 8–64 B, latency 5–50) × 8 traces = **59,510 accesses checked, 0 mismatches**.
+
+![2-way cache](docs/figures/sa2_block_diagram.png)
+![hit rate per trace](docs/figures/p2_hit_per_trace.png)
+
+```bash
+./scripts/sweep.sh              # all 22 configurations -> sim/phase2/sweep.csv
+python3 scripts/plot_results.py # figures docs/figures/p2_*.svg/.pdf/.png
+./synth/synth_yosys.sh          # Artix-7 resources (needs: brew install yosys)
+vivado -mode batch -source synth/vivado_synth.tcl   # exact timing on a lab machine
+```
+
 ## Repository layout
 
 ```
-rtl/                      synthesizable design
+rtl/                      synthesizable design (sa2_* and way_select.v = Phase II 2-way cache)
   addr_decoder.v          tag / index / word-select split
   cache_rams.v            cache_data_ram, cache_tag_ram, valid_ram
   tag_comparator.v        hit = valid & (stored_tag == tag)
   cache_controller.v      4-state FSM + hit/miss counters
   dm_cache.v              top level (connects everything)
   main_memory.v           behavioural DRAM model (simulation only)
-tb/tb_dm_cache.v          self-checking testbench + reference model + 6 traces
+tb/tb_dm_cache.v          Phase I self-checking testbench (direct-mapped)
+tb/tb_cache.v             Phase II testbench: both caches, any size/block/latency, WB traffic model
+synth/                    Yosys + Vivado synthesis scripts and reports
+docs/viva/                interview preparation notes
 sim/                      results.csv, trace_log.csv (every access), dm_cache.vcd, sim_output.txt
 scripts/run_sim.sh        one command: compile, simulate, regenerate figures
 scripts/vcd2svg.py        VCD -> waveform SVG (no dependencies)
@@ -89,12 +118,12 @@ Rebuild the report: `cd docs/report && tectonic main.tex` (or upload `main.tex` 
 | Parv Goyal | `main_memory.v`, `dm_cache.v` integration, `scripts/vcd2svg.py` waveforms |
 | Vaibhav Rajput | `tb/tb_dm_cache.v` (reference model + traces), hit-rate / AMAT analysis |
 
-## Phase II roadmap
-- [ ] Vivado synthesis: LUT / FF / BRAM utilisation and Fmax
-- [ ] 2-way set-associative LRU cache with the same interface, compared on identical traces
-- [ ] Cache-size / block-size / latency sweeps
-- [ ] Write buffer; write-through vs write-back memory-traffic comparison
-- [ ] Final report: Results & Discussion, Conclusion
+## Roadmap
+- [x] Synthesis: LUT / FF / LUTRAM (Yosys, Artix-7); Vivado script for exact Fmax
+- [x] 2-way set-associative LRU cache with the same interface, compared on identical traces
+- [x] Cache-size / block-size / latency sweeps
+- [x] Write-through vs write-back memory-traffic comparison (write buffer: future work)
+- [x] Final report: Results & Discussion, Conclusion
 
 ## References
 Patterson & Hennessy, *Computer Organization and Design* (ch. 5) · Hennessy & Patterson, *Computer Architecture: A Quantitative Approach* · M. D. Hill, "A case for direct-mapped caches," *IEEE Computer*, 1988 (full list in the report).
