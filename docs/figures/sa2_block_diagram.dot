@@ -1,0 +1,25 @@
+digraph sa2_cache {
+  rankdir=LR; splines=spline; nodesep=0.4; ranksep=0.65; newrank=true;
+  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=11, fillcolor="#eef3fb", color="#2f5597"];
+  edge [fontname="Helvetica", fontsize=9, color="#444444"];
+  cpu [label="CPU /\nTestbench", fillcolor="#e8e8e8", color="#555555"];
+  subgraph cluster_c {
+    label="sa2_cache  (1 KB, 2 ways x 32 sets x 16 B)"; fontname="Helvetica-Bold"; fontsize=12; style="rounded,dashed"; color="#2f5597";
+    ctrl [label="sa2_cache_controller\n(FSM + victim latch\n+ LRU update)", fillcolor="#fff3c4", color="#b38f00"];
+    split [label="address split\ntag[31:9] | set[8:4] | word[3:2]"];
+    subgraph cluster_s { label="sa2_way_storage"; fontname="Helvetica"; fontsize=10; style="rounded"; color="#9aa7bd";
+      w0 [label="way 0\ndata | tag | valid"]; w1 [label="way 1\ndata | tag | valid"]; lru [label="LRU bits\n32 x 1"]; }
+    sel [label="way_select\n2 tag comparators\nhit, hit_way, victim\nblock mux", fillcolor="#dff0d8", color="#3c763d"];
+  }
+  mem [label="main_memory\n(latency L)", fillcolor="#ffd9d2", color="#a94442"];
+  cpu -> ctrl [label="req, we, addr, wdata"];
+  ctrl -> split [label="addr_q"];
+  split -> w0 [label="set"]; split -> w1; split -> lru; split -> sel [label="tag"];
+  w0 -> sel; w1 -> sel; lru -> sel [label="lru"];
+  sel -> ctrl [label="hit, hit_way, victim", constraint=false];
+  ctrl -> w0 [label="wr_way, we", style=dashed, constraint=false];
+  sel -> cpu [label="rdata, ready, hit", constraint=false, color="#2f5597"];
+  ctrl -> mem [dir=both, label="  mem_req / mem_ready\l"];
+  mem -> w1 [label="refill block", constraint=false];
+  {rank=same; ctrl; mem;}
+}
