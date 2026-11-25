@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="454" font-family="Helvetica,Arial,sans-serif">
+<rect width="760" height="454" fill="white"/>
+<text x="74" y="26" font-size="19" font-weight="bold" fill="#1F2328">Memory traffic: write-through vs write-back (direct-mapped)</text>
+<text x="16" y="232.0" font-size="14" fill="#6B7280" transform="rotate(-90 16 232.0)" text-anchor="middle">bytes moved</text>
+<line x1="74" x2="740" y1="380.0" y2="380.0" stroke="#E4E6EA"/>
+<text x="66" y="385.0" font-size="13" fill="#6B7280" text-anchor="end">0</text>
+<line x1="74" x2="740" y1="320.8" y2="320.8" stroke="#E4E6EA"/>
+<text x="66" y="325.8" font-size="13" fill="#6B7280" text-anchor="end">1600</text>
+<line x1="74" x2="740" y1="261.6" y2="261.6" stroke="#E4E6EA"/>
+<text x="66" y="266.6" font-size="13" fill="#6B7280" text-anchor="end">3200</text>
+<line x1="74" x2="740" y1="202.4" y2="202.4" stroke="#E4E6EA"/>
+<text x="66" y="207.4" font-size="13" fill="#6B7280" text-anchor="end">4800</text>
+<line x1="74" x2="740" y1="143.2" y2="143.2" stroke="#E4E6EA"/>
+<text x="66" y="148.2" font-size="13" fill="#6B7280" text-anchor="end">6400</text>
+<line x1="74" x2="740" y1="84.0" y2="84.0" stroke="#E4E6EA"/>
+<text x="66" y="89.0" font-size="13" fill="#6B7280" text-anchor="end">8000</text>
+<rect x="97.3" y="304.2" width="56.9" height="75.8" fill="#5B6270" rx="1.5"/>
+<text x="125.8" y="299.2" font-size="12" fill="#1F2328" text-anchor="middle">2048</text>
+<rect x="157.2" y="304.2" width="56.9" height="75.8" fill="#E8590C" rx="1.5"/>
+<text x="185.7" y="299.2" font-size="12" fill="#1F2328" text-anchor="middle">2048</text>
+<text x="157.2" y="402" font-size="14" fill="#1F2328" text-anchor="middle">sequential</text>
+<rect x="263.8" y="108.3" width="56.9" height="271.7" fill="#5B6270" rx="1.5"/>
+<text x="292.3" y="103.3" font-size="12" fill="#1F2328" text-anchor="middle">7344</text>
+<rect x="323.8" y="108.3" width="56.9" height="271.7" fill="#E8590C" rx="1.5"/>
+<text x="352.2" y="103.3" font-size="12" fill="#1F2328" text-anchor="middle">7344</text>
+<text x="323.8" y="402" font-size="14" fill="#1F2328" text-anchor="middle">random</text>
+<rect x="430.3" y="242.4" width="56.9" height="137.6" fill="#5B6270" rx="1.5"/>
+<text x="458.8" y="237.4" font-size="12" fill="#1F2328" text-anchor="middle">3720</text>
+<rect x="490.2" y="140.8" width="56.9" height="239.2" fill="#E8590C" rx="1.5"/>
+<text x="518.7" y="135.8" font-size="12" fill="#1F2328" text-anchor="middle">6464</text>
+<text x="490.2" y="402" font-size="14" fill="#1F2328" text-anchor="middle">mixed_rw</text>
+<rect x="596.8" y="304.2" width="56.9" height="75.8" fill="#5B6270" rx="1.5"/>
+<text x="625.3" y="299.2" font-size="12" fill="#1F2328" text-anchor="middle">2048</text>
+<rect x="656.8" y="342.1" width="56.9" height="37.9" fill="#E8590C" rx="1.5"/>
+<text x="685.2" y="337.1" font-size="12" fill="#1F2328" text-anchor="middle">1024</text>
+<text x="656.8" y="402" font-size="14" fill="#1F2328" text-anchor="middle">write_loop</text>
+<rect x="74" y="41" width="14" height="14" rx="2" fill="#5B6270"/>
+<text x="94" y="53" font-size="14" fill="#1F2328">write-through (RTL)</text>
+<rect x="274" y="41" width="14" height="14" rx="2" fill="#E8590C"/>
+<text x="294" y="53" font-size="14" fill="#1F2328">write-back (model)</text>
+</svg>

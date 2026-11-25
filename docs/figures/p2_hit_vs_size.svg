@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="454" font-family="Helvetica,Arial,sans-serif">
+<rect width="760" height="454" fill="white"/>
+<text x="74" y="26" font-size="19" font-weight="bold" fill="#1F2328">Mean hit rate vs cache size (5 workload traces)</text>
+<text x="16" y="232.0" font-size="14" fill="#6B7280" transform="rotate(-90 16 232.0)" text-anchor="middle">mean hit rate (%)</text>
+<line x1="74" x2="740" y1="380.0" y2="380.0" stroke="#E4E6EA"/>
+<text x="66" y="385.0" font-size="13" fill="#6B7280" text-anchor="end">0</text>
+<line x1="74" x2="740" y1="320.8" y2="320.8" stroke="#E4E6EA"/>
+<text x="66" y="325.8" font-size="13" fill="#6B7280" text-anchor="end">20</text>
+<line x1="74" x2="740" y1="261.6" y2="261.6" stroke="#E4E6EA"/>
+<text x="66" y="266.6" font-size="13" fill="#6B7280" text-anchor="end">40</text>
+<line x1="74" x2="740" y1="202.4" y2="202.4" stroke="#E4E6EA"/>
+<text x="66" y="207.4" font-size="13" fill="#6B7280" text-anchor="end">60</text>
+<line x1="74" x2="740" y1="143.2" y2="143.2" stroke="#E4E6EA"/>
+<text x="66" y="148.2" font-size="13" fill="#6B7280" text-anchor="end">80</text>
+<line x1="74" x2="740" y1="84.0" y2="84.0" stroke="#E4E6EA"/>
+<text x="66" y="89.0" font-size="13" fill="#6B7280" text-anchor="end">100</text>
+<text x="104.0" y="402" font-size="14" fill="#1F2328" text-anchor="middle">256 B</text>
+<text x="255.5" y="402" font-size="14" fill="#1F2328" text-anchor="middle">512 B</text>
+<text x="407.0" y="402" font-size="14" fill="#1F2328" text-anchor="middle">1 KB</text>
+<text x="558.5" y="402" font-size="14" fill="#1F2328" text-anchor="middle">2 KB</text>
+<text x="710.0" y="402" font-size="14" fill="#1F2328" text-anchor="middle">4 KB</text>
+<text x="407.0" y="436" font-size="14" fill="#6B7280" text-anchor="middle">cache capacity</text>
+<polyline points="104.0,280.4 255.5,261.3 407.0,248.9 558.5,171.5 710.0,167.3" fill="none" stroke="#5B6270" stroke-width="3" />
+<circle cx="104.0" cy="280.4" r="4.5" fill="white" stroke="#5B6270" stroke-width="2.5"/>
+<circle cx="255.5" cy="261.3" r="4.5" fill="white" stroke="#5B6270" stroke-width="2.5"/>
+<circle cx="407.0" cy="248.9" r="4.5" fill="white" stroke="#5B6270" stroke-width="2.5"/>
+<circle cx="558.5" cy="171.5" r="4.5" fill="white" stroke="#5B6270" stroke-width="2.5"/>
+<circle cx="710.0" cy="167.3" r="4.5" fill="white" stroke="#5B6270" stroke-width="2.5"/>
+<polyline points="104.0,223.8 255.5,202.7 407.0,190.0 558.5,172.0 710.0,166.8" fill="none" stroke="#E8590C" stroke-width="3" />
+<circle cx="104.0" cy="223.8" r="4.5" fill="white" stroke="#E8590C" stroke-width="2.5"/>
+<circle cx="255.5" cy="202.7" r="4.5" fill="white" stroke="#E8590C" stroke-width="2.5"/>
+<circle cx="407.0" cy="190.0" r="4.5" fill="white" stroke="#E8590C" stroke-width="2.5"/>
+<circle cx="558.5" cy="172.0" r="4.5" fill="white" stroke="#E8590C" stroke-width="2.5"/>
+<circle cx="710.0" cy="166.8" r="4.5" fill="white" stroke="#E8590C" stroke-width="2.5"/>
+<rect x="74" y="41" width="14" height="14" rx="2" fill="#5B6270"/>
+<text x="94" y="53" font-size="14" fill="#1F2328">direct-mapped</text>
+<rect x="226" y="41" width="14" height="14" rx="2" fill="#E8590C"/>
+<text x="246" y="53" font-size="14" fill="#1F2328">2-way LRU</text>
+</svg>

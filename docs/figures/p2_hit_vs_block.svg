@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="454" font-family="Helvetica,Arial,sans-serif">
+<rect width="760" height="454" fill="white"/>
+<text x="74" y="26" font-size="19" font-weight="bold" fill="#1F2328">Hit rate vs block size (1 KB cache)</text>
+<text x="16" y="232.0" font-size="14" fill="#6B7280" transform="rotate(-90 16 232.0)" text-anchor="middle">hit rate (%)</text>
+<line x1="74" x2="740" y1="380.0" y2="380.0" stroke="#E4E6EA"/>
+<text x="66" y="385.0" font-size="13" fill="#6B7280" text-anchor="end">0</text>
+<line x1="74" x2="740" y1="320.8" y2="320.8" stroke="#E4E6EA"/>
+<text x="66" y="325.8" font-size="13" fill="#6B7280" text-anchor="end">20</text>
+<line x1="74" x2="740" y1="261.6" y2="261.6" stroke="#E4E6EA"/>
+<text x="66" y="266.6" font-size="13" fill="#6B7280" text-anchor="end">40</text>
+<line x1="74" x2="740" y1="202.4" y2="202.4" stroke="#E4E6EA"/>
+<text x="66" y="207.4" font-size="13" fill="#6B7280" text-anchor="end">60</text>
+<line x1="74" x2="740" y1="143.2" y2="143.2" stroke="#E4E6EA"/>
+<text x="66" y="148.2" font-size="13" fill="#6B7280" text-anchor="end">80</text>
+<line x1="74" x2="740" y1="84.0" y2="84.0" stroke="#E4E6EA"/>
+<text x="66" y="89.0" font-size="13" fill="#6B7280" text-anchor="end">100</text>
+<text x="104.0" y="402" font-size="14" fill="#1F2328" text-anchor="middle">8 B</text>
+<text x="306.0" y="402" font-size="14" fill="#1F2328" text-anchor="middle">16 B</text>
+<text x="508.0" y="402" font-size="14" fill="#1F2328" text-anchor="middle">32 B</text>
+<text x="710.0" y="402" font-size="14" fill="#1F2328" text-anchor="middle">64 B</text>
+<text x="407.0" y="436" font-size="14" fill="#6B7280" text-anchor="middle">block size</text>
+<polyline points="104.0,232.0 306.0,158.0 508.0,121.0 710.0,102.5" fill="none" stroke="#5B6270" stroke-width="3" />
+<circle cx="104.0" cy="232.0" r="4.5" fill="white" stroke="#5B6270" stroke-width="2.5"/>
+<circle cx="306.0" cy="158.0" r="4.5" fill="white" stroke="#5B6270" stroke-width="2.5"/>
+<circle cx="508.0" cy="121.0" r="4.5" fill="white" stroke="#5B6270" stroke-width="2.5"/>
+<circle cx="710.0" cy="102.5" r="4.5" fill="white" stroke="#5B6270" stroke-width="2.5"/>
+<polyline points="104.0,279.4 306.0,254.6 508.0,236.6 710.0,238.4" fill="none" stroke="#E8590C" stroke-width="3" />
+<circle cx="104.0" cy="279.4" r="4.5" fill="white" stroke="#E8590C" stroke-width="2.5"/>
+<circle cx="306.0" cy="254.6" r="4.5" fill="white" stroke="#E8590C" stroke-width="2.5"/>
+<circle cx="508.0" cy="236.6" r="4.5" fill="white" stroke="#E8590C" stroke-width="2.5"/>
+<circle cx="710.0" cy="238.4" r="4.5" fill="white" stroke="#E8590C" stroke-width="2.5"/>
+<polyline points="104.0,275.4 306.0,248.8 508.0,237.2 710.0,245.9" fill="none" stroke="#E8590C" stroke-width="3" stroke-dasharray="7 5"/>
+<circle cx="104.0" cy="275.4" r="4.5" fill="white" stroke="#E8590C" stroke-width="2.5"/>
+<circle cx="306.0" cy="248.8" r="4.5" fill="white" stroke="#E8590C" stroke-width="2.5"/>
+<circle cx="508.0" cy="237.2" r="4.5" fill="white" stroke="#E8590C" stroke-width="2.5"/>
+<circle cx="710.0" cy="245.9" r="4.5" fill="white" stroke="#E8590C" stroke-width="2.5"/>
+<rect x="74" y="41" width="14" height="14" rx="2" fill="#5B6270"/>
+<text x="94" y="53" font-size="14" fill="#1F2328">sequential</text>
+<rect x="202" y="41" width="14" height="14" rx="2" fill="#E8590C"/>
+<text x="222" y="53" font-size="14" fill="#1F2328">mixed r/w DM</text>
+<rect x="346" y="41" width="14" height="14" rx="2" fill="#E8590C"/>
+<text x="366" y="53" font-size="14" fill="#1F2328">mixed r/w 2-way</text>
+</svg>
